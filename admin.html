@@ -547,9 +547,12 @@
                    autocapitalize="none" autocorrect="off">
           </div>
           <div>
-            <label class="fp-label">Contraseña <span style="color:red">*</span></label>
+            <label class="fp-label">Contraseña <span id="passRequired" style="color:red">*</span></label>
             <input type="text" id="uPassword" class="fp-input" placeholder="contraseña segura"
                    autocomplete="new-password">
+            <div id="passHint" style="display:none;font-size:0.7rem;color:#888;margin-top:4px;">
+              <i class="fas fa-info-circle"></i> Deja vacío para mantener la contraseña actual
+            </div>
           </div>
           <div>
             <label class="fp-label">Rol <span style="color:red">*</span></label>
@@ -741,15 +744,14 @@ function renderDashboard(rows) {
     var d = new Date(r[0]);
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   });
-  // r[2]=usuario/técnico (nuevo esquema)
-  var tecnicos = [...new Set(rows.map(function(r) { return r[2]; }))].filter(Boolean);
+  var tecnicos = [...new Set(rows.map(function(r) { return r[1]; }))].filter(Boolean);
 
   document.getElementById('dTotalHoy').textContent    = hoy.length;
   document.getElementById('dTotalSemana').textContent = semana.length;
   document.getElementById('dTotalMes').textContent    = mes.length;
   document.getElementById('dTecnicos').textContent    = tecnicos.length;
 
-  // Últimas 20 visitas
+  // Últimas 20
   var last20 = rows.slice(-20).reverse();
   var tbody  = document.getElementById('dashTable');
   if (!last20.length) {
@@ -757,33 +759,26 @@ function renderDashboard(rows) {
     return;
   }
   tbody.innerHTML = last20.map(function(r) {
-    // 0=fecha, 2=usuario, 4=cliente, 5=predio, 6=objetivo, 7=cultivo
     return '<tr>' +
-      '<td class="td-user">' + esc(r[2]) + '</td>' +   // técnico
-      '<td>' + esc(r[4]) + '</td>' +                    // cliente
-      '<td>' + esc(r[5]) + '</td>' +                    // predio
-      '<td>' + objetivoBadge(r[6]) + '</td>' +          // objetivo
-      '<td>' + esc(r[7]) + '</td>' +                    // cultivo
-      '<td>' + esc(r[0]) + '</td>' +                    // fecha
+      '<td class="td-user">' + esc(r[1]) + '</td>' +
+      '<td>' + esc(r[2]) + '</td>' +
+      '<td>' + esc(r[4]) + '</td>' +
+      '<td>' + objetivoBadge(r[5]) + '</td>' +
+      '<td>' + esc(r[6]) + '</td>' +
+      '<td>' + esc(r[0]) + '</td>' +
       '</tr>';
   }).join('');
 }
 
 function renderVisitas(rows) {
-  // Índices de columnas (sincronizados con Code.gs HEADERS_VISITAS):
-  // 0=fecha, 1=hora, 2=usuario, 3=rol_atendio, 4=cliente, 5=predio,
-  // 6=objetivo, 7=cultivo, 8=etapa, 9=hectareas, 10=productos,
-  // 11=interes, 12=notas, 13=lat, 14=lon, 15=gps_accuracy,
-  // 16=gps_manual, 17=lat_captura, 18=lon_captura, 19=ts, 20=device_id
-
   var f1 = document.getElementById('filtTecnico')?.value?.toLowerCase() || '';
   var f2 = document.getElementById('filtFecha')?.value || '';
   var f3 = document.getElementById('filtCliente')?.value?.toLowerCase() || '';
 
   var filtered = rows.filter(function(r) {
-    if (f1 && !(r[2] || '').toLowerCase().includes(f1)) return false;   // usuario=r[2]
-    if (f2 && !(r[0] || '').toString().includes(f2)) return false;       // fecha=r[0]
-    if (f3 && !(r[4] || '').toLowerCase().includes(f3)) return false;   // cliente=r[4]
+    if (f1 && !(r[1] || '').toLowerCase().includes(f1)) return false;
+    if (f2 && !(r[0] || '').includes(f2)) return false;
+    if (f3 && !(r[2] || '').toLowerCase().includes(f3)) return false;
     return true;
   });
 
@@ -793,31 +788,24 @@ function renderVisitas(rows) {
     return;
   }
   tbody.innerHTML = filtered.slice().reverse().map(function(r) {
-    var lat = r[13] || '';
-    var lon = r[14] || '';
+    var lat = r[15] || r[13];
+    var lon = r[16] || r[14];
     var gpsCell = (lat && lon)
       ? '<a href="https://maps.google.com/?q=' + lat + ',' + lon +
         '" target="_blank" style="color:var(--verde-corp);font-weight:700;font-size:0.75rem;">📍 Ver</a>'
       : '<span style="color:#ccc">—</span>';
-
-    // Interés con estrellas
-    var interesNum = parseInt(r[11]) || 0;
-    var interesCell = interesNum > 0
-      ? '<span title="' + ['','Sin interés','Poco interés','Interés medio','Muy interesado','Compra probable'][interesNum] + '">' + '⭐'.repeat(interesNum) + '</span>'
-      : '<span style="color:#ccc">—</span>';
-
     return '<tr>' +
-      '<td class="td-user">' + esc(r[2]) + '</td>' +          // técnico
-      '<td>' + esc(r[4]) + '</td>' +                           // cliente
-      '<td>' + esc(r[3]) + '</td>' +                           // rol de quien atendió
-      '<td>' + esc(r[5]) + '</td>' +                           // predio
-      '<td>' + objetivoBadge(r[6]) + '</td>' +                 // objetivo
-      '<td>' + esc(r[7]) + '</td>' +                           // cultivo
-      '<td>' + esc(r[8]) + '</td>' +                           // etapa
-      '<td>' + interesCell + '</td>' +                         // interés ⭐
-      '<td>' + gpsCell + '</td>' +                             // GPS
-      '<td>' + esc(r[0]) + '</td>' +                           // fecha
-      '<td>' + esc(r[20]||'') + '</td>' +                      // device_id
+      '<td class="td-user">' + esc(r[1]) + '</td>' +
+      '<td>' + esc(r[2]) + '</td>' +
+      '<td>' + esc(r[3]) + '</td>' +
+      '<td>' + esc(r[4]) + '</td>' +
+      '<td>' + objetivoBadge(r[5]) + '</td>' +
+      '<td>' + esc(r[6]) + '</td>' +
+      '<td>' + esc(r[7]) + '</td>' +
+      '<td>' + esc(r[8]) + '</td>' +
+      '<td>' + gpsCell + '</td>' +
+      '<td>' + esc(r[0]) + '</td>' +
+      '<td>' + esc(r[21]||r[19]||'') + '</td>' +
       '</tr>';
   }).join('');
 }
@@ -882,12 +870,15 @@ window.saveUser = async function () {
   var role  = document.getElementById('uRole').value;
   var email = document.getElementById('uEmail').value.trim();
 
-  if (!uname || !pass) { toast('Usuario y contraseña son requeridos', 'error'); return; }
+  if (!uname) { toast('El nombre de usuario es requerido', 'error'); return; }
+  if (!editingUser && !pass) { toast('La contraseña es requerida para nuevos usuarios', 'error'); return; }
 
   try {
     var action = editingUser ? 'updateUser' : 'createUser';
-    var params = { action, username: uname, password: pass, role, email };
+    var params = { action: action, username: uname, role: role, email: email };
     if (editingUser) params.oldUsername = editingUser;
+    // Solo enviar password si se escribió uno (al editar puede ir vacío)
+    if (pass) params.password = pass;
 
     var data = await fetchGS(params);
     if (data.success) {
@@ -898,7 +889,7 @@ window.saveUser = async function () {
       toast(data.message || 'Error al guardar usuario', 'error');
     }
   } catch(e) {
-    toast('Error de conexión', 'error');
+    toast('Error de conexión: ' + e.message, 'error');
   }
 };
 
@@ -910,9 +901,14 @@ window.editUser = function (username) {
   document.getElementById('uPassword').value = '';
   document.getElementById('uRole').value     = (u.role || 'tecnico').toLowerCase();
   document.getElementById('uEmail').value    = u.email || '';
-  document.getElementById('userFormTitle').innerHTML = '<i class="fas fa-user-edit"></i> Editar: ' + esc(username);
-  document.getElementById('userBtnTxt').textContent  = 'Actualizar Usuario';
-  document.getElementById('uUsername').scrollIntoView({ behavior: 'smooth' });
+  document.getElementById('userFormTitle').innerHTML = '<i class="fas fa-user-edit"></i> Editando: <strong>' + esc(username) + '</strong>';
+  document.getElementById('userBtnTxt').textContent  = 'Guardar Cambios';
+  // Mostrar hint de contraseña opcional y quitar asterisco
+  document.getElementById('passHint').style.display     = 'block';
+  document.getElementById('passRequired').style.display = 'none';
+  document.getElementById('uPassword').placeholder = 'Nueva contraseña (opcional)';
+  // Scroll al formulario
+  document.getElementById('userFormTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 window.cancelUserEdit = function () {
@@ -923,6 +919,10 @@ window.cancelUserEdit = function () {
   document.getElementById('uEmail').value    = '';
   document.getElementById('userFormTitle').innerHTML = '<i class="fas fa-user-plus"></i> Nuevo Usuario';
   document.getElementById('userBtnTxt').textContent  = 'Crear Usuario';
+  // Resetear hints de contraseña
+  document.getElementById('passHint').style.display     = 'none';
+  document.getElementById('passRequired').style.display = 'inline';
+  document.getElementById('uPassword').placeholder = 'contraseña segura';
 };
 
 window.deleteUser = async function (username) {
@@ -987,25 +987,15 @@ window.testConnection = async function () {
 // ── EXPORTAR CSV ──────────────────────────────────────────────
 window.exportCSV = function () {
   if (!allVisitas.length) { toast('No hay datos para exportar', 'warn'); return; }
-  // Índices: 0=fecha,2=usuario,3=rol_atendio,4=cliente,5=predio,
-  //          6=objetivo,7=cultivo,8=etapa,9=hectareas,10=productos,
-  //          11=interes,12=notas,13=lat,14=lon,15=gps_accuracy,20=device_id
-  var headers = ['Fecha','Hora','Técnico','Rol Atendió','Cliente','Predio',
-                 'Objetivo','Cultivo','Etapa','Hectáreas','Productos','Interés','Notas',
-                 'Lat','Lon','Precisión GPS','GPS Manual','Lat Captura','Lon Captura',
-                 'Timestamp','Dispositivo'];
+  var headers = ['Fecha','Técnico','Cliente','Empresa','Predio','Objetivo','Cultivo','Etapa','Hectáreas','Productos','Notas','Lat','Lon'];
   var rows = allVisitas.map(function(r) {
-    return headers.map(function(_, i) {
-      var val = (r[i] !== undefined && r[i] !== null) ? r[i] : '';
-      return '"' + val.toString().replace(/"/g, '""') + '"';
-    }).join(',');
+    return headers.map(function(_, i) { return '"' + (r[i] || '').toString().replace(/"/g, '""') + '"'; }).join(',');
   });
   var csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
   var a   = document.createElement('a');
   a.href  = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-  a.download = 'PRODENI_visitas_' + new Date().toISOString().split('T')[0] + '.csv';
+  a.download = 'prodeni_visitas_' + new Date().toISOString().split('T')[0] + '.csv';
   a.click();
-  toast('CSV exportado ✅', 'success');
 };
 
 // ── HELPERS ───────────────────────────────────────────────────
