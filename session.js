@@ -137,8 +137,9 @@
 
     // ── Requiere rol admin o redirige ──────────────────────
     requireAdmin: function () {
-      const s = this.require();
-      if (s && s.role !== 'admin') { window.location.href = 'tecnico.html'; return null; }
+      var s = this.require();
+      if (!s) return null;
+      if (s.role !== 'admin') { window.location.href = 'tecnico.html'; return null; }
       return s;
     },
 
