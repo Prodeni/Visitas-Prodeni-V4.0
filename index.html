@@ -75,7 +75,7 @@
       to   { transform: translateY(0);    opacity: 1; }
     }
 
-    .brand {
+    . {
       text-align: center;
       margin-bottom: 2rem;
     }
@@ -222,12 +222,13 @@
 </head>
 <body>
 
-<div class="card">
-  <div class="brand">
-    <img src="Logo.png" alt="PRODENI" class="brand-logo"
+<div class="brand">
+  <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+    <img src="Logo.png" alt="PRODENI" class="brand-logo" style="margin-bottom: 0;"
          onerror="this.style.display='none'">
-    <span class="brand-slogan">Guardianes de la Tierra</span>
+    <span class="brand-slogan" style="margin-bottom: 0;">Guardianes de la Tierra</span>
   </div>
+</div>
 
   <div class="offline-badge" id="offlineBadge">
     <i class="fas fa-wifi-slash"></i> Modo sin conexión
