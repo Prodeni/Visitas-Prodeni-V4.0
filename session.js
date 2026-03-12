@@ -113,13 +113,14 @@
           if (!raw) continue;
           const s = JSON.parse(raw);
           if (!s || !s.username || !s.role) continue;
-          // Renovar si expiró pero el dato existe (técnico offline)
+          // Si la sesión expiró → rechazarla siempre
+          // (el técnico debe re-loguear cada día para registrar asistencia)
           if (s.expiresAt && Date.now() > s.expiresAt) {
-            s.expiresAt = expToday();
-            const str = JSON.stringify(s);
-            try { localStorage.setItem(KEY, str); }   catch(e) {}
-            try { sessionStorage.setItem(KEY, str); } catch(e) {}
-            try { setCookie(KEY, str, s.expiresAt); } catch(e) {}
+            // Limpiar sesión expirada
+            try { localStorage.removeItem(KEY); }   catch(e) {}
+            try { sessionStorage.removeItem(KEY); } catch(e) {}
+            try { delCookie(KEY); }                 catch(e) {}
+            return null;
           }
           return s;
         } catch(e) {}
@@ -136,9 +137,8 @@
 
     // ── Requiere rol admin o redirige ──────────────────────
     requireAdmin: function () {
-      var s = this.require();
-      if (!s) return null;
-      if (s.role !== 'admin') { window.location.href = 'tecnico.html'; return null; }
+      const s = this.require();
+      if (s && s.role !== 'admin') { window.location.href = 'tecnico.html'; return null; }
       return s;
     },
 

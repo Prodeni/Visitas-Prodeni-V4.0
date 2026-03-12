@@ -37,8 +37,9 @@
     /* ── HEADER ── */
     .header { background:linear-gradient(135deg,var(--verde-corp),var(--verde-deep)); padding:12px 20px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 4px 16px rgba(0,0,0,0.2); position:sticky; top:0; z-index:100; }
     .header-brand { display:flex; align-items:center; gap:10px; }
-    .header-logo { width:38px; height:38px; border-radius:9px; background:white; padding:2px; object-fit:contain; }
-    .header-name { font-size:1rem; font-weight:800; color:white; letter-spacing:2px; }
+    .header-logo { width:36px; height:36px; border-radius:8px; background:white; padding:3px; object-fit:contain; flex-shrink:0; }
+    .header-name { font-size:1rem; font-weight:800; color:white; letter-spacing:1.5px; line-height:1.1; }
+    .header-slogan { font-size:0.6rem; font-weight:400; color:rgba(255,255,255,0.75); letter-spacing:1px; text-transform:uppercase; display:block; margin-top:1px; }
     .header-right { display:flex; align-items:center; gap:8px; }
     .conn-badge { display:flex; align-items:center; gap:5px; padding:5px 10px; border-radius:20px; font-size:0.75rem; font-weight:600; background:rgba(255,255,255,0.15); color:white; }
     .conn-dot { width:7px; height:7px; border-radius:50%; }
@@ -199,7 +200,10 @@
 <header class="header">
   <div class="header-brand">
     <img src="Logo.png" class="header-logo" id="h-logo" alt="PRODENI" onerror="this.style.display='none'">
-    <span class="header-name" id="h-name">PRODENI</span>
+    <div style="display:flex;flex-direction:column;justify-content:center;">
+      <span class="header-name" id="h-name">PRODENI</span>
+      <span class="header-slogan" id="h-slogan">Guardianes de la Tierra</span>
+    </div>
   </div>
   <div class="header-right">
     <div class="conn-badge">
@@ -535,7 +539,7 @@
       <div class="side-card-body">
         <div id="pending-list" style="max-height:200px;overflow-y:auto;"></div>
         <button class="btn btn-green btn-full" id="btnSyncAll" style="margin-top:10px;font-size:0.82rem;"
-                onclick="syncPending()">
+                onclick="syncPending(true)">
           <i class="fas fa-sync-alt"></i> Sincronizar Todo
         </button>
       </div>
@@ -620,7 +624,7 @@ window.prodeniLogout = function () {
 };
 
 // ─── CONEXIÓN ─────────────────────────────────────────────────
-function handleOnline()  { isOnline = true;  updateConnUI(); toast('Conexión restablecida. Sincronizando...', 'success'); syncPending(); }
+function handleOnline()  { isOnline = true;  updateConnUI(); setTimeout(function(){ syncPending(false); }, 1500); }
 function handleOffline() { isOnline = false; updateConnUI(); toast('Sin conexión — guardando en dispositivo', 'warn'); }
 
 function updateConnUI() {
@@ -695,42 +699,64 @@ window.captureGPS = function () {
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Capturando...';
   showGPSProgress();
   var progressInterval = simulateProgress();
+  var settled = false;
 
-  var watchId = navigator.geolocation.watchPosition(
-    function(pos) {
-      clearInterval(progressInterval);
-      navigator.geolocation.clearWatch(watchId);
-      applyGPS(pos, true);
-      hideGPSProgress();
-    },
-    function(err) {
-      clearInterval(progressInterval);
-      navigator.geolocation.clearWatch(watchId);
-      hideGPSProgress();
-      handleGPSError(err);
-    },
-    { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-  );
-
-  setTimeout(function() {
-    navigator.geolocation.clearWatch(watchId);
+  function done(pos, fromCache) {
+    if (settled) return;
+    settled = true;
     clearInterval(progressInterval);
     hideGPSProgress();
-    if (!gpsPredio) {
-      navigator.geolocation.getCurrentPosition(
-        function(pos) { applyGPS(pos, true); },
-        function(err) { handleGPSError(err); },
-        { enableHighAccuracy: false, timeout: 8000, maximumAge: 120000 }
-      );
-    }
-  }, 20000);
+    navigator.geolocation.clearWatch(watchId);
+    clearTimeout(fallbackTimer);
+    applyGPS(pos, true, fromCache);
+  }
+
+  function fail(err) {
+    if (settled) return;
+    // Intento 2: posición reciente (hasta 5 min) sin alta precisión
+    navigator.geolocation.getCurrentPosition(
+      function(pos) { done(pos, true); },
+      function() {
+        // Intento 3: última posición del tracker (guardada localmente)
+        var lastTrack = _lastTrackPos;
+        if (lastTrack && lastTrack.lat) {
+          var fakePos = { coords: { latitude: lastTrack.lat, longitude: lastTrack.lon,
+            accuracy: lastTrack.acc || 200 }, timestamp: new Date(lastTrack.ts).getTime() };
+          done(fakePos, true);
+        } else {
+          settled = true;
+          clearInterval(progressInterval);
+          hideGPSProgress();
+          handleGPSError(err);
+        }
+      },
+      { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 }
+    );
+  }
+
+  // Intento 1: GPS alta precisión (15 seg máximo)
+  var watchId = navigator.geolocation.watchPosition(
+    function(pos) {
+      if (pos.coords.accuracy <= 80) { done(pos, false); }
+      else if (!settled) { done(pos, false); } // acepta cualquiera después de 5s
+    },
+    function(err) { fail(err); },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+  );
+
+  // Fallback automático a los 15 segundos
+  var fallbackTimer = setTimeout(function() {
+    if (!settled) fail({ code: 3, message: 'timeout' });
+  }, 15000);
 };
 
-function applyGPS(pos, showMsg) {
+function applyGPS(pos, showMsg, fromCache) {
   var lat = pos.coords.latitude;
   var lon = pos.coords.longitude;
   var acc = pos.coords.accuracy;
   var now = new Date().toISOString();
+  var posAge = pos.timestamp ? Math.round((Date.now() - pos.timestamp) / 1000) : 0;
+
   if (!gpsCaptura) { gpsCaptura = { lat:lat, lon:lon, accuracy:acc, timestamp:now }; tsCaptura = now; }
   gpsPredio = { lat:lat, lon:lon, accuracy:acc, timestamp:now };
   tsPredio  = now;
@@ -742,19 +768,30 @@ function applyGPS(pos, showMsg) {
   var block  = document.getElementById('gpsBlock');
   var btn    = document.getElementById('btnGps');
 
-  var prec = acc < 20 ? 'Alta precisión' : acc < 50 ? 'Buena precisión' : acc < 100 ? 'Precisión aceptable' : 'Baja precisión';
-  icon.style.background = '#E8F5E9';
-  icon.innerHTML = '<i class="fas fa-check-circle" style="color:#2E7D32;font-size:1rem;"></i>';
-  label.textContent  = 'Ubicación capturada · ' + prec;
-  coords.textContent = '± ' + Math.round(acc) + 'm · ' + new Date(now).toLocaleTimeString('es-MX');
+  var prec  = acc < 20 ? 'Alta precisión' : acc < 50 ? 'Buena precisión' : acc < 100 ? 'Aceptable' : 'Baja precisión';
+  var color = acc < 50 ? '#2E7D32' : acc < 150 ? '#F57F17' : '#B71C1C';
+  var bg    = acc < 50 ? '#E8F5E9' : acc < 150 ? '#FFF8E1' : '#FFEBEE';
+  var ageStr = fromCache && posAge > 10 ? ' · posición de hace ' + (posAge < 60 ? posAge + 's' : Math.round(posAge/60) + 'min') : '';
+
+  icon.style.background = bg;
+  icon.innerHTML = '<i class="fas fa-' + (acc < 100 ? 'check-circle' : 'exclamation-circle') + '" style="color:' + color + ';font-size:1rem;"></i>';
+  label.textContent  = 'Ubicación capturada · ' + prec + (fromCache ? ' (reciente)' : '');
+  coords.textContent = '± ' + Math.round(acc) + 'm · ' + new Date(now).toLocaleTimeString('es-MX') + ageStr;
   badge.style.display = 'block';
-  badge.style.background = '#E8F5E9';
-  badge.style.color = '#2E7D32';
-  badge.textContent = '✓ Listo';
+  badge.style.background = bg;
+  badge.style.color = color;
+  badge.textContent = acc < 100 ? '✓ Listo' : '⚠ Baja precisión';
   block.classList.add('captured');
   btn.disabled = false;
-  btn.innerHTML = '<i class="fas fa-redo"></i> Actualizar Ubicación';
-  if (showMsg) toast('Ubicación capturada (±' + Math.round(acc) + 'm)', 'success');
+  btn.innerHTML = '<i class="fas fa-redo"></i> Mejorar Ubicación';
+
+  // Actualizar mapa si está inicializado
+  if (window._map && window._mapMarker) {
+    _mapMarker.setLatLng([lat, lon]);
+    _map.setView([lat, lon], 16);
+  }
+
+  if (showMsg) toast('Ubicación capturada ±' + Math.round(acc) + 'm' + (fromCache ? ' (usó GPS reciente)' : ''), acc < 150 ? 'success' : 'warn');
 }
 
 function handleGPSError(err) {
@@ -865,14 +902,18 @@ window.confirmMapPoint = function () {
 
 // ─── FORM ─────────────────────────────────────────────────────
 function buildFormData() {
+  // syncId: ID único por registro para evitar duplicados en el Sheet
+  // Formato: deviceId + timestamp → garantiza unicidad
+  var syncId = getDeviceId() + '_' + Date.now();
   return {
     action:       'saveData',
+    syncId:       syncId,
     usuario:      currentUser.username,
     cliente:      document.getElementById('cliente').value.trim(),
     empresa:      document.getElementById('empresa').value || '',
     predio:       document.getElementById('predio').value.trim(),
     objetivo:     getObjetivoValue(),
-    cultivo:      getCultivoValue(),  // Usa campo libre si eligió Otro
+    cultivo:      getCultivoValue(),
     etapa:        document.getElementById('etapa').value,
     hectareas:    document.getElementById('hectareas').value,
     productos:    document.getElementById('productos').value.trim(),
@@ -942,17 +983,35 @@ async function sendToServer(data, pendingIndex) {
 async function submitToAppsScript(data) {
   var clean = {};
   for (var k in data) {
-    if (data[k] !== null && data[k] !== undefined && data[k] !== '') clean[k] = data[k];
+    if (data[k] !== null && data[k] !== undefined && data[k] !== '') clean[k] = String(data[k]);
   }
   clean.action = 'saveData';
-  var params = new URLSearchParams(clean).toString();
-  var url    = SCRIPT_URL + '?' + params;
+
+  var url = SCRIPT_URL + '?' + new URLSearchParams(clean).toString();
+
+  // Intento 1: GET corto con CORS — podemos leer la respuesta
   if (url.length <= 2000) {
-    await fetch(url, { method:'GET', mode:'no-cors' });
-  } else {
-    await fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'}, body:JSON.stringify(clean) });
+    try {
+      var res = await fetch(url, { method:'GET', mode:'cors', cache:'no-store' });
+      if (res.ok) {
+        var json = await res.json().catch(function(){return{success:true};});
+        return json;
+      }
+    } catch(e) { /* CORS bloqueado o sin red — intentar no-cors */ }
   }
-  return true;
+
+  // Intento 2: POST con mode:'no-cors' (no podemos leer respuesta, asumimos éxito si no lanza)
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      mode:   'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body:   JSON.stringify(clean),
+    });
+    return { success: true };  // no-cors no lanza si llega
+  } catch(e) {
+    throw new Error('Sin red: ' + e.message);
+  }
 }
 
 function saveLocally(data) {
@@ -1039,24 +1098,65 @@ window.deleteItem = function (i) {
   toast('Registro eliminado', 'info');
 };
 
-async function syncPending() {
-  var pending = JSON.parse(localStorage.getItem('pendingForms') || '[]');
-  if (!pending.length || !isOnline) return;
-  toast('Sincronizando ' + pending.length + ' registros...', 'info');
-  for (var i = pending.length - 1; i >= 0; i--) {
-    try {
-      await submitToAppsScript(pending[i]);
-      var h = getHistory();
-      var found = h.find(function(r) { return String(r.timestamp) === String(pending[i].timestamp); });
-      if (found) { found.synced = true; }
-      localStorage.setItem('local_history', JSON.stringify(h));
-      removePendingAt(i);
-      pending = JSON.parse(localStorage.getItem('pendingForms') || '[]');
-    } catch(e) {}
+var _syncInProgress = false;  // evita llamadas simultáneas
+
+async function syncPending(manual) {
+  if (_syncInProgress) {
+    if (manual) toast('Sincronización ya en curso...', 'info');
+    return;
   }
+  var pending = JSON.parse(localStorage.getItem('pendingForms') || '[]');
+  if (!pending.length) {
+    if (manual) toast('No hay registros pendientes', 'info');
+    return;
+  }
+  if (!isOnline) {
+    if (manual) toast('Sin conexión — los registros se enviarán al reconectar', 'warn');
+    return;
+  }
+
+  _syncInProgress = true;
+  var btnSync = document.getElementById('btnSyncAll');
+  if (btnSync) { btnSync.disabled = true; btnSync.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sincronizando...'; }
+  if (manual) toast('Enviando ' + pending.length + ' registro(s)...', 'info');
+
+  var ok = 0, fail = 0;
+  // Procesar de más antiguo a más nuevo (índice 0 primero)
+  for (var i = 0; i < pending.length; i++) {
+    var item = pending[i];
+    try {
+      var resp = await submitToAppsScript(item);
+      if (resp === true || resp.success !== false) {
+        // Marcar como enviado en historial
+        var h = getHistory();
+        var found = h.find(function(r) {
+          return String(r.syncId) === String(item.syncId) ||
+                 String(r.timestamp) === String(item.timestamp);
+        });
+        if (found) { found.synced = true; found._estado = 'enviada'; }
+        localStorage.setItem('local_history', JSON.stringify(h));
+        ok++;
+        // Remover de pendientes (actualizar lista en cada ciclo)
+        var pArr = JSON.parse(localStorage.getItem('pendingForms') || '[]');
+        pArr = pArr.filter(function(x) {
+          return String(x.syncId || x.timestamp) !== String(item.syncId || item.timestamp);
+        });
+        localStorage.setItem('pendingForms', JSON.stringify(pArr));
+      } else {
+        fail++;
+      }
+    } catch(e) {
+      fail++;
+    }
+  }
+
+  _syncInProgress = false;
+  if (btnSync) { btnSync.disabled = false; btnSync.innerHTML = '<i class="fas fa-sync-alt"></i> Sincronizar Todo'; }
   loadPending(); updateStats();
   document.getElementById('last-sync').textContent = new Date().toLocaleTimeString('es-MX');
-  toast('Sincronización completada ✓', 'success');
+  if (ok > 0 && fail === 0) toast(ok + ' registro(s) enviado(s) ✓', 'success');
+  else if (ok > 0 && fail > 0) toast(ok + ' enviados, ' + fail + ' fallaron — reintenta', 'warn');
+  else if (fail > 0) toast('Error al enviar. Intenta de nuevo.', 'error');
 }
 
 // ─── HISTORIAL ────────────────────────────────────────────────
