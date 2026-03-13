@@ -493,6 +493,15 @@
         <div style="font-size:0.7rem;color:var(--text-soft);margin-top:4px;">
           Última sync: <strong id="last-sync">—</strong>
         </div>
+        <button id="btnSyncPerm" onclick="syncPending(true)"
+          style="margin-top:10px;width:100%;padding:10px;background:var(--verde-corp);
+                 color:white;border:none;border-radius:10px;font-family:Outfit,sans-serif;
+                 font-size:0.82rem;font-weight:700;cursor:pointer;
+                 display:flex;align-items:center;justify-content:center;gap:8px;">
+          <i class="fas fa-sync-alt"></i> Sincronizar pendientes
+        </button>
+        <div id="syncStatus" style="font-size:0.72rem;text-align:center;
+             margin-top:5px;color:var(--text-soft);min-height:16px;"></div>
       </div>
     </div>
 
@@ -988,25 +997,26 @@ async function submitToAppsScript(data) {
     }
   }
   clean.action = 'saveData';
+
+  // Apps Script GET devuelve Access-Control-Allow-Origin: *
+  // → fetch normal funciona en Chrome, Firefox y Safari
+  // Siempre GET con query string — nunca POST (POST requiere preflight CORS que Apps Script no maneja)
   var url = SCRIPT_URL + '?' + new URLSearchParams(clean).toString();
 
-  // Método: <img> tag — el más confiable para Apps Script
-  // Apps Script redirige script.google.com → googleusercontent.com
-  // El img tag sigue el redirect sin restricciones CORS
-  // onerror se dispara porque recibe JSON (no imagen)
-  // PERO el handler YA se ejecutó y el dato está guardado en el Sheet
-  return new Promise(function(resolve, reject) {
-    var img = new Image();
-    var timer = setTimeout(function() {
-      img.src = '';
-      reject(new Error('timeout — sin respuesta del servidor'));
-    }, 15000);
-    img.onload = img.onerror = function() {
-      clearTimeout(timer);
-      resolve({ success: true });
-    };
-    img.src = url + '&_cb=' + Date.now();
-  });
+  try {
+    var res = await fetch(url, {
+      method: 'GET',
+      cache:  'no-store',
+    });
+    // Apps Script redirige — res.ok puede ser false si el redirect no se siguió
+    // pero si llegamos aquí sin excepción, el dato fue recibido
+    var json = { success: true };
+    try { json = await res.json(); } catch(e) {}
+    return json;
+  } catch(err) {
+    // Sin red
+    throw new Error('Sin conexión: ' + err.message);
+  }
 }
 
 function saveLocally(data) {
