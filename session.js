@@ -67,16 +67,6 @@
       try { localStorage.setItem(KEY, str); }   catch(e) {}
       try { sessionStorage.setItem(KEY, str); } catch(e) {}
       try { setCookie(KEY, str, exp); }          catch(e) {}
-
-      // Identificar al usuario en PostHog (si está disponible)
-      try {
-        if (window.posthog) {
-          window.posthog.identify(session.username, {
-            role: session.role,
-            email: session.email,
-          });
-        }
-      } catch(e) {}
     },
 
     // ── Guardar credenciales offline ───────────────────────
@@ -160,9 +150,6 @@
       try { sessionStorage.removeItem(KEY); } catch(e) {}
       try { delCookie(KEY); }                 catch(e) {}
       // NO tocar CREDS_KEY ni USER_KEY — necesarios para offline
-
-      // Limpiar identidad de PostHog (si está disponible)
-      try { if (window.posthog) window.posthog.reset(); } catch(e) {}
     },
   };
 
