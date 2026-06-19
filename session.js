@@ -6,9 +6,9 @@
 // ============================================================
 
 (function () {
-  const KEY = 'prodeni_session';
-  const CREDS_KEY = 'prodeni_creds';      // credenciales offline cifradas
-  const USER_KEY  = 'prodeni_user';       // perfil del usuario (rol, nombre)
+  const KEY = 'prodeni_session_v2';
+  const CREDS_KEY = 'prodeni_creds_v2';      // credenciales offline cifradas
+  const USER_KEY  = 'prodeni_user_v2';       // perfil del usuario (rol, nombre)
 
   // ── Expiración: 23:59:59 del día actual ─────────────────
   // La sesión muere a medianoche — el técnico debe re-loguear cada día.
