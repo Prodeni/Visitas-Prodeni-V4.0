@@ -4,7 +4,7 @@
 //  Cambiar CACHE_NAME al subir nueva versión → v4.1, v4.2...
 // ============================================================
 
-const CACHE_NAME = 'prodeni-v4.4'; // bumpeado para forzar recarga
+const CACHE_NAME = 'prodeni-v4.5'; // bumpeado para forzar logout global
 const SYNC_TAG   = 'prodeni-sync';
 
 const CACHE_FILES = [
