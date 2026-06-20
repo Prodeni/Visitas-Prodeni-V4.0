@@ -4,7 +4,7 @@
 //  Cambiar CACHE_NAME al subir nueva versión → v4.1, v4.2...
 // ============================================================
 
-const CACHE_NAME = 'prodeni-v4.5'; // bumpeado para forzar logout global
+const CACHE_NAME = 'prodeni-v4.6'; // fix mobile login: bypass SW para Apps Script
 const SYNC_TAG   = 'prodeni-sync';
 
 const CACHE_FILES = [
@@ -45,14 +45,12 @@ self.addEventListener('activate', e => {
 // ── FETCH ─────────────────────────────────────────────────────
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-  // Apps Script siempre va a la red
-  if (url.hostname.includes('script.google.com')) {
-    e.respondWith(fetch(e.request).catch(() =>
-      new Response(JSON.stringify({ status: 'error', message: 'Sin conexión' }),
-        { headers: { 'Content-Type': 'application/json' } })
-    ));
+  
+  // Apps Script: NO interceptar — el browser hace fetch nativo (fix móviles)
+  if (url.hostname.includes('script.google.com') || url.hostname.includes('script.googleusercontent.com')) {
     return;
   }
+  
   // Todo lo demás: caché primero, red en segundo plano (stale-while-revalidate)
   e.respondWith(
     caches.match(e.request).then(cached => {
