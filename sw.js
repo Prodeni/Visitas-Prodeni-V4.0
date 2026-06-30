@@ -4,7 +4,7 @@
 //  Cambiar CACHE_NAME al subir nueva versión → v4.1, v4.2...
 // ============================================================
 
-const CACHE_NAME = 'prodeni-v4.6'; // fix mobile login: bypass SW para Apps Script
+const CACHE_NAME = 'prodeni-v4.7'; // re-integrar PostHog (perdido en v4.6) + agregar desarrollos.html al cache
 const SYNC_TAG   = 'prodeni-sync';
 
 const CACHE_FILES = [
