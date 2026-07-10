@@ -4,15 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PRODENI — Desarrollos</title>
-  <!-- PostHog Analytics -->
-  <script>
-    !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u="posthog";for(void 0!==a&&(u=a),e[u]=function(){var t=function(){var t,e,o={};return t=Array.prototype.slice.call(arguments,0),(e=Object.assign({},t.shift())).distinct_id=e.distinct_id||e.uuid,t.unshift(e),t}();return e[u].push(t),t},e[u].people=e[u].people||[],e[u].toString=function(t){var e="posthog";return"posthog"!==u&&(e+="."+u),t||(e+=" (stub)"),e},e[u].people.toString=function(){return e[u].toString(1)+".people (stub)"},o="init Ie Ts Ms Ee Es Rs capture De calculateEventProperties Os register register_once register_for_session unregister unregister_for_session js getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSurveysLoaded onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey canRenderSurveyAsync identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags getPersonProperties setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty Ds $s createPersonProfile Ls Fs opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing Ps debug Is getPageViewId captureTraceFeedback captureTraceMetric".split(" "),n=0;n<o.length;n++)g(e[u],o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
-    posthog.init('phc_CJ3WV8q4dTBCiMN3z9apBwYcSUdRtDqzBTJoBjFoV3Ws', {
-      api_host: 'https://us.i.posthog.com',
-      defaults: '2025-05-24'
-    });
-    posthog.register({ app: 'visitas' });
-  </script>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2E7D32">
   <link rel="apple-touch-icon" href="Logo.png">
@@ -78,14 +69,23 @@
 
     .detail-card { background:white; border-radius:16px; padding:20px; box-shadow:0 2px 10px rgba(0,0,0,0.06); margin-bottom:14px; }
     .detail-card h3 { font-size:0.78rem; font-weight:800; color:var(--verde-deep); margin-bottom:14px; display:flex; align-items:center; gap:8px; text-transform:uppercase; letter-spacing:1px; }
+    .detail-card h4 { font-size:0.75rem; font-weight:700; color:var(--text-soft); margin:14px 0 8px; text-transform:uppercase; letter-spacing:0.5px; }
+    .detail-card h4:first-of-type { margin-top:0; }
 
     .fp-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .fp-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
     .fp-full { grid-column:1/-1; }
     .fp-label { font-size:0.7rem; font-weight:700; color:var(--verde-corp); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px; }
     .fp-input, .fp-select, .fp-textarea { width:100%; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.88rem; background:var(--bg); outline:none; color:var(--text); }
     .fp-input:focus, .fp-select:focus, .fp-textarea:focus { border-color:var(--verde-mid); background:white; box-shadow:0 0 0 3px rgba(56,142,60,0.1); }
     .fp-textarea { resize:vertical; min-height:60px; }
     .fp-readonly { background:#F8FBF8; color:var(--text-soft); }
+
+    /* Bloque de tratamiento (protocolo experimental) */
+    .tratamiento-box { background:#F8FBF8; border:1.5px dashed var(--border); border-radius:10px; padding:12px 14px; margin-bottom:10px; }
+    .tratamiento-box.testigo { background:#FFF8E1; border-color:#F9A825; }
+    .tratamiento-box-title { font-size:0.75rem; font-weight:800; color:var(--verde-corp); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px; }
+    .tratamiento-box.testigo .tratamiento-box-title { color:#E65100; }
 
     /* PROGRESS */
     .progress-wrap { margin-top:10px; }
@@ -126,7 +126,7 @@
     .empty-state .small { font-size:0.8rem; margin-top:6px; opacity:0.7; }
 
     @media(max-width:768px) {
-      .fp-grid { grid-template-columns:1fr; }
+      .fp-grid, .fp-grid-3 { grid-template-columns:1fr; }
       .fp-full { grid-column:1; }
       .toolbar-search { min-width:0; flex:1; }
     }
@@ -193,7 +193,9 @@
       <div><label class="fp-label">Cultivo</label><input type="text" id="f_cultivo" class="fp-input fp-readonly" readonly></div>
       <div><label class="fp-label">Variedad</label><input type="text" id="f_variedad" class="fp-input" placeholder="Opcional"></div>
       <div><label class="fp-label">Hectáreas</label><input type="number" id="f_hectareas" class="fp-input" step="0.01"></div>
+      <div><label class="fp-label">Densidad de plantas</label><input type="text" id="f_densidad_plantas" class="fp-input" placeholder="Ej: 25,000 plantas/ha"></div>
       <div><label class="fp-label">Etapa fenológica</label><input type="text" id="f_etapa" class="fp-input"></div>
+      <div><label class="fp-label">Ingeniero a cargo de la ruta</label><input type="text" id="f_ingeniero_ruta" class="fp-input" placeholder="Nombre"></div>
     </div>
   </div>
 
@@ -204,6 +206,81 @@
       <div><label class="fp-label">Nombre científico</label><input type="text" id="f_nombre_cientifico" class="fp-input" placeholder="Si aplica"></div>
       <div><label class="fp-label">N° aplicaciones planeadas</label><input type="number" id="f_num_aplicaciones" class="fp-input" min="1" max="20"></div>
       <div class="fp-full"><label class="fp-label">Objetivo del desarrollo</label><textarea id="f_objetivo" class="fp-textarea" placeholder="Qué se busca demostrar / lograr..."></textarea></div>
+    </div>
+  </div>
+
+  <div class="detail-card">
+    <h3><i class="fas fa-seedling"></i> Evaluación y manejo</h3>
+    <div class="fp-grid-3">
+      <div>
+        <label class="fp-label">Nivel de infestación</label>
+        <select id="f_nivel_infestacion" class="fp-select">
+          <option value="">Selecciona...</option>
+          <option value="Bajo">Bajo</option>
+          <option value="Medio">Medio</option>
+          <option value="Alto">Alto</option>
+          <option value="Extremo">Extremo</option>
+        </select>
+      </div>
+      <div>
+        <label class="fp-label">Producción en</label>
+        <select id="f_produccion_en" class="fp-select">
+          <option value="">Selecciona...</option>
+          <option value="Macrotúnel">Macrotúnel</option>
+          <option value="Campo abierto">Campo abierto</option>
+          <option value="Otro">Otro</option>
+        </select>
+      </div>
+      <div>
+        <label class="fp-label">Tipo de suelo</label>
+        <select id="f_tipo_suelo" class="fp-select">
+          <option value="">Selecciona...</option>
+          <option value="Arenoso">Arenoso</option>
+          <option value="Arcilloso">Arcilloso</option>
+          <option value="Limoso">Limoso</option>
+          <option value="Franco">Franco</option>
+        </select>
+      </div>
+      <div>
+        <label class="fp-label">Sistema de riego</label>
+        <select id="f_sistema_riego" class="fp-select">
+          <option value="">Selecciona...</option>
+          <option value="Goteo">Goteo</option>
+          <option value="Aspersión">Aspersión</option>
+          <option value="Presurizado">Presurizado</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="detail-card">
+    <h3><i class="fas fa-flask"></i> Protocolo experimental</h3>
+
+    <div class="tratamiento-box">
+      <div class="tratamiento-box-title">Tratamiento 1</div>
+      <div class="fp-grid-3">
+        <div><label class="fp-label">Producto</label><input type="text" id="f_t1_producto" class="fp-input"></div>
+        <div><label class="fp-label">Dosis 1</label><input type="text" id="f_t1_dosis1" class="fp-input"></div>
+        <div><label class="fp-label">Dosis 2</label><input type="text" id="f_t1_dosis2" class="fp-input"></div>
+      </div>
+    </div>
+
+    <div class="tratamiento-box">
+      <div class="tratamiento-box-title">Tratamiento 2</div>
+      <div class="fp-grid-3">
+        <div><label class="fp-label">Producto</label><input type="text" id="f_t2_producto" class="fp-input"></div>
+        <div><label class="fp-label">Dosis 1</label><input type="text" id="f_t2_dosis1" class="fp-input"></div>
+        <div><label class="fp-label">Dosis 2</label><input type="text" id="f_t2_dosis2" class="fp-input"></div>
+      </div>
+    </div>
+
+    <div class="tratamiento-box testigo">
+      <div class="tratamiento-box-title">Testigo</div>
+      <div class="fp-grid-3">
+        <div><label class="fp-label">Producto comercial</label><input type="text" id="f_testigo_producto" class="fp-input"></div>
+        <div><label class="fp-label">Dosis 1</label><input type="text" id="f_testigo_dosis1" class="fp-input"></div>
+        <div><label class="fp-label">Dosis 2</label><input type="text" id="f_testigo_dosis2" class="fp-input"></div>
+      </div>
     </div>
   </div>
 
@@ -229,6 +306,10 @@
           <option value="mala_efectividad">Mala efectividad</option>
           <option value="otro">Otro</option>
         </select>
+      </div>
+      <div>
+        <label class="fp-label">Eficacia técnica (%)</label>
+        <input type="number" id="f_eficacia_tecnica" class="fp-input" min="0" max="100" step="0.1" placeholder="% de reducción de población/daño">
       </div>
     </div>
     <div class="progress-wrap">
@@ -405,19 +486,41 @@ window.openDetail = async function (id) {
   document.getElementById('detail-view').classList.add('active');
   document.getElementById('detailTitle').textContent = (d.cliente || 'Sin cliente') + (d.predio ? ' — ' + d.predio : '');
   setBadge(d.estatus);
+
   document.getElementById('f_cliente').value = d.cliente || '';
   document.getElementById('f_predio').value = d.predio || '';
   document.getElementById('f_cultivo').value = d.cultivo || '';
   document.getElementById('f_variedad').value = d.variedad || '';
   document.getElementById('f_hectareas').value = d.hectareas || '';
+  document.getElementById('f_densidad_plantas').value = d.densidad_plantas || '';
   document.getElementById('f_etapa').value = d.etapa_fenologica || '';
+  document.getElementById('f_ingeniero_ruta').value = d.ingeniero_ruta || '';
+
   document.getElementById('f_problema').value = d.problema_detectado || '';
   document.getElementById('f_nombre_cientifico').value = d.nombre_cientifico || '';
   document.getElementById('f_num_aplicaciones').value = d.num_aplicaciones || '';
   document.getElementById('f_objetivo').value = d.objetivo_desarrollo || '';
+
+  document.getElementById('f_nivel_infestacion').value = d.nivel_infestacion || '';
+  document.getElementById('f_produccion_en').value = d.produccion_en || '';
+  document.getElementById('f_tipo_suelo').value = d.tipo_suelo || '';
+  document.getElementById('f_sistema_riego').value = d.sistema_riego || '';
+
+  document.getElementById('f_t1_producto').value = d.tratamiento1_producto || '';
+  document.getElementById('f_t1_dosis1').value = d.tratamiento1_dosis1 || '';
+  document.getElementById('f_t1_dosis2').value = d.tratamiento1_dosis2 || '';
+  document.getElementById('f_t2_producto').value = d.tratamiento2_producto || '';
+  document.getElementById('f_t2_dosis1').value = d.tratamiento2_dosis1 || '';
+  document.getElementById('f_t2_dosis2').value = d.tratamiento2_dosis2 || '';
+  document.getElementById('f_testigo_producto').value = d.testigo_producto || '';
+  document.getElementById('f_testigo_dosis1').value = d.testigo_dosis1 || '';
+  document.getElementById('f_testigo_dosis2').value = d.testigo_dosis2 || '';
+
   document.getElementById('f_estatus').value = d.estatus || 'propuesto';
   document.getElementById('f_motivo_fallo').value = d.motivo_fallo || '';
+  document.getElementById('f_eficacia_tecnica').value = d.eficacia_tecnica || '';
   document.getElementById('f_testimonio').value = d.testimonio_productor || '';
+
   onEstatusChange();
   hideAplForm();
   await loadAplicaciones(d.id);
@@ -550,13 +653,33 @@ window.saveDesarrollo = async function () {
     id: currentDesarrollo.id,
     variedad: document.getElementById('f_variedad').value,
     hectareas: document.getElementById('f_hectareas').value,
+    densidad_plantas: document.getElementById('f_densidad_plantas').value,
     etapa_fenologica: document.getElementById('f_etapa').value,
+    ingeniero_ruta: document.getElementById('f_ingeniero_ruta').value,
+
     problema_detectado: document.getElementById('f_problema').value,
     nombre_cientifico: document.getElementById('f_nombre_cientifico').value,
     objetivo_desarrollo: document.getElementById('f_objetivo').value,
     num_aplicaciones: document.getElementById('f_num_aplicaciones').value,
+
+    nivel_infestacion: document.getElementById('f_nivel_infestacion').value,
+    produccion_en: document.getElementById('f_produccion_en').value,
+    tipo_suelo: document.getElementById('f_tipo_suelo').value,
+    sistema_riego: document.getElementById('f_sistema_riego').value,
+
+    tratamiento1_producto: document.getElementById('f_t1_producto').value,
+    tratamiento1_dosis1: document.getElementById('f_t1_dosis1').value,
+    tratamiento1_dosis2: document.getElementById('f_t1_dosis2').value,
+    tratamiento2_producto: document.getElementById('f_t2_producto').value,
+    tratamiento2_dosis1: document.getElementById('f_t2_dosis1').value,
+    tratamiento2_dosis2: document.getElementById('f_t2_dosis2').value,
+    testigo_producto: document.getElementById('f_testigo_producto').value,
+    testigo_dosis1: document.getElementById('f_testigo_dosis1').value,
+    testigo_dosis2: document.getElementById('f_testigo_dosis2').value,
+
     estatus: document.getElementById('f_estatus').value,
     motivo_fallo: document.getElementById('f_motivo_fallo').value,
+    eficacia_tecnica: document.getElementById('f_eficacia_tecnica').value,
     testimonio_productor: document.getElementById('f_testimonio').value
   };
   try {
