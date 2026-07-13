@@ -112,7 +112,7 @@
     .apl-item-meta { font-size:0.72rem; color:var(--text-soft); }
     .apl-item-body { font-size:0.82rem; color:var(--text); }
 
-    /* NUEVO: botón eliminar aplicación */
+    /* NUEVO: botón eliminar */
     .btn-icon-del { background:none; border:none; color:var(--rojo); cursor:pointer; font-size:0.8rem; padding:2px 4px; margin-left:6px; }
     .btn-icon-del:hover { color:#8B0000; }
 
@@ -266,36 +266,31 @@
     </div>
   </div>
 
+  <!-- ====== NUEVO PROTOCOLO EXPERIMENTAL DINÁMICO ====== -->
   <div class="detail-card">
     <h3><i class="fas fa-flask"></i> Protocolo experimental</h3>
-
-    <div class="tratamiento-box">
-      <div class="tratamiento-box-title">Tratamiento 1</div>
-      <div class="fp-grid-3">
-        <div><label class="fp-label">Producto</label><input type="text" id="f_t1_producto" class="fp-input"></div>
-        <div><label class="fp-label">Dosis 1</label><input type="text" id="f_t1_dosis1" class="fp-input"></div>
-        <div><label class="fp-label">Dosis 2</label><input type="text" id="f_t1_dosis2" class="fp-input"></div>
+    <div id="tratamientosList" class="apl-list"></div>
+    <button class="btn btn-secondary btn-small" onclick="showTratForm()"><i class="fas fa-plus"></i> Agregar tratamiento</button>
+    <div id="tratForm" style="display:none;margin-top:14px;padding-top:14px;border-top:1px dashed var(--border);">
+      <div class="fp-grid">
+        <div>
+          <label class="fp-label">Tipo</label>
+          <select id="trat_tipo" class="fp-select">
+            <option value="tratamiento">Tratamiento</option>
+            <option value="testigo">Testigo (control)</option>
+          </select>
+        </div>
+        <div><label class="fp-label">Producto</label><input type="text" id="trat_producto" class="fp-input" placeholder="Nombre del producto"></div>
+        <div><label class="fp-label">Dosis 1</label><input type="text" id="trat_dosis1" class="fp-input"></div>
+        <div><label class="fp-label">Dosis 2</label><input type="text" id="trat_dosis2" class="fp-input" placeholder="Opcional"></div>
       </div>
-    </div>
-
-    <div class="tratamiento-box">
-      <div class="tratamiento-box-title">Tratamiento 2</div>
-      <div class="fp-grid-3">
-        <div><label class="fp-label">Producto</label><input type="text" id="f_t2_producto" class="fp-input"></div>
-        <div><label class="fp-label">Dosis 1</label><input type="text" id="f_t2_dosis1" class="fp-input"></div>
-        <div><label class="fp-label">Dosis 2</label><input type="text" id="f_t2_dosis2" class="fp-input"></div>
-      </div>
-    </div>
-
-    <div class="tratamiento-box testigo">
-      <div class="tratamiento-box-title">Testigo</div>
-      <div class="fp-grid-3">
-        <div><label class="fp-label">Producto comercial</label><input type="text" id="f_testigo_producto" class="fp-input"></div>
-        <div><label class="fp-label">Dosis 1</label><input type="text" id="f_testigo_dosis1" class="fp-input"></div>
-        <div><label class="fp-label">Dosis 2</label><input type="text" id="f_testigo_dosis2" class="fp-input"></div>
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <button class="btn btn-green btn-small" onclick="saveTratamiento()" id="btnTratSave"><i class="fas fa-save"></i> Guardar tratamiento</button>
+        <button class="btn btn-secondary btn-small" onclick="hideTratForm()">Cancelar</button>
       </div>
     </div>
   </div>
+  <!-- ====== FIN PROTOCOLO EXPERIMENTAL ====== -->
 
   <div class="detail-card">
     <h3><i class="fas fa-chart-line"></i> Estado y progreso</h3>
@@ -423,6 +418,7 @@ var currentUser = null;
 var allDesarrollos = [];
 var currentDesarrollo = null;
 var aplicacionesActuales = [];
+var tratamientosActuales = [];
 
 document.addEventListener('DOMContentLoaded', function () {
   currentUser = ProdenSession.require();
@@ -538,16 +534,6 @@ window.openDetail = async function (id) {
   document.getElementById('f_tipo_suelo').value = d.tipo_suelo || '';
   document.getElementById('f_sistema_riego').value = d.sistema_riego || '';
 
-  document.getElementById('f_t1_producto').value = d.tratamiento1_producto || '';
-  document.getElementById('f_t1_dosis1').value = d.tratamiento1_dosis1 || '';
-  document.getElementById('f_t1_dosis2').value = d.tratamiento1_dosis2 || '';
-  document.getElementById('f_t2_producto').value = d.tratamiento2_producto || '';
-  document.getElementById('f_t2_dosis1').value = d.tratamiento2_dosis1 || '';
-  document.getElementById('f_t2_dosis2').value = d.tratamiento2_dosis2 || '';
-  document.getElementById('f_testigo_producto').value = d.testigo_producto || '';
-  document.getElementById('f_testigo_dosis1').value = d.testigo_dosis1 || '';
-  document.getElementById('f_testigo_dosis2').value = d.testigo_dosis2 || '';
-
   document.getElementById('f_estatus').value = d.estatus || 'propuesto';
   document.getElementById('f_motivo_fallo').value = d.motivo_fallo || '';
   document.getElementById('f_eficacia_tecnica').value = d.eficacia_tecnica || '';
@@ -555,7 +541,9 @@ window.openDetail = async function (id) {
 
   onEstatusChange();
   hideAplForm();
+  hideTratForm();
   await loadAplicaciones(d.id);
+  await loadTratamientos(d.id);
   window.scrollTo(0, 0);
 };
 
@@ -564,7 +552,9 @@ window.closeDetail = function () {
   document.getElementById('list-view').classList.remove('hidden');
   currentDesarrollo = null;
   aplicacionesActuales = [];
+  tratamientosActuales = [];
   hideAplForm();
+  hideTratForm();
 };
 
 function setBadge(estatus) {
@@ -593,7 +583,6 @@ async function loadAplicaciones(desarrolloId) {
   }
 }
 
-// ---- RENDER APLICACIONES CON BOTÓN ELIMINAR ----
 function renderAplicaciones() {
   var list = document.getElementById('aplList');
   if (!aplicacionesActuales.length) {
@@ -618,7 +607,6 @@ function renderAplicaciones() {
   }).join('');
 }
 
-// ---- ELIMINAR APLICACIÓN ----
 window.eliminarAplicacion = async function (id) {
   if (!confirm('¿Eliminar esta aplicación? No se puede deshacer.')) return;
   try {
@@ -643,7 +631,6 @@ function updateProgress() {
   document.getElementById('progressPct').textContent = pct + '%';
 }
 
-// ---- PRODUCTOS DINÁMICOS ----
 window.showAplForm = function () {
   document.getElementById('aplForm').style.display = 'block';
   document.getElementById('apl_numero').value = (aplicacionesActuales.length || 0) + 1;
@@ -684,7 +671,6 @@ window.hideAplForm = function () {
   document.getElementById('apl_modo').value = '';
 };
 
-// ---- GUARDAR APLICACIÓN ----
 window.saveAplicacion = async function () {
   if (!currentDesarrollo) return;
   var btn = document.getElementById('btnAplSave');
@@ -746,16 +732,6 @@ window.saveDesarrollo = async function () {
     tipo_suelo: document.getElementById('f_tipo_suelo').value,
     sistema_riego: document.getElementById('f_sistema_riego').value,
 
-    tratamiento1_producto: document.getElementById('f_t1_producto').value,
-    tratamiento1_dosis1: document.getElementById('f_t1_dosis1').value,
-    tratamiento1_dosis2: document.getElementById('f_t1_dosis2').value,
-    tratamiento2_producto: document.getElementById('f_t2_producto').value,
-    tratamiento2_dosis1: document.getElementById('f_t2_dosis1').value,
-    tratamiento2_dosis2: document.getElementById('f_t2_dosis2').value,
-    testigo_producto: document.getElementById('f_testigo_producto').value,
-    testigo_dosis1: document.getElementById('f_testigo_dosis1').value,
-    testigo_dosis2: document.getElementById('f_testigo_dosis2').value,
-
     estatus: document.getElementById('f_estatus').value,
     motivo_fallo: document.getElementById('f_motivo_fallo').value,
     eficacia_tecnica: document.getElementById('f_eficacia_tecnica').value,
@@ -778,7 +754,7 @@ window.saveDesarrollo = async function () {
   }
 };
 
-// ---- GENERAR WORD ----
+// ====== NUEVA FUNCIÓN generarWord ======
 window.generarWord = async function () {
   if (!currentDesarrollo) return;
   var btn = document.getElementById('btnGenerarWord');
@@ -800,6 +776,96 @@ window.generarWord = async function () {
   } finally {
     btn.disabled = false;
     txt.textContent = 'Generar documento Word';
+  }
+};
+// ====== FIN NUEVA FUNCIÓN ======
+
+// ---- TRATAMIENTOS DINÁMICOS ----
+async function loadTratamientos(desarrolloId) {
+  document.getElementById('tratamientosList').innerHTML = '<p style="font-size:0.82rem;color:var(--text-soft);text-align:center;padding:14px;"><i class="fas fa-spinner fa-spin"></i> Cargando...</p>';
+  try {
+    var data = await fetchGS({ action: 'getTratamientos', desarrollo_id: desarrolloId });
+    if (data.success) {
+      tratamientosActuales = data.tratamientos || [];
+      renderTratamientos();
+    }
+  } catch (e) {
+    document.getElementById('tratamientosList').innerHTML = '<p style="font-size:0.82rem;color:var(--rojo);">Error al cargar</p>';
+  }
+}
+
+function renderTratamientos() {
+  var list = document.getElementById('tratamientosList');
+  if (!tratamientosActuales.length) {
+    list.innerHTML = '<p style="font-size:0.82rem;color:var(--text-soft);text-align:center;padding:14px;">Sin tratamientos registrados aún.</p>';
+    return;
+  }
+  list.innerHTML = tratamientosActuales.map(function (t) {
+    var esTestigo = t.tipo === 'testigo';
+    return '<div class="apl-item' + (esTestigo ? ' pendiente' : '') + '">' +
+      '<div class="apl-item-header">' +
+        '<span class="apl-item-num"><i class="fas fa-flask"></i> ' + (esTestigo ? 'Testigo' : 'Tratamiento ' + esc(t.numero || '')) + '</span>' +
+        '<button class="btn-icon-del" onclick="eliminarTratamiento(\'' + esc(t.id) + '\')" title="Eliminar"><i class="fas fa-trash"></i></button>' +
+      '</div>' +
+      '<div class="apl-item-body"><strong>Producto:</strong> ' + esc(t.producto || '—') + '</div>' +
+      (t.dosis1 ? '<div class="apl-item-body"><strong>Dosis 1:</strong> ' + esc(t.dosis1) + '</div>' : '') +
+      (t.dosis2 ? '<div class="apl-item-body"><strong>Dosis 2:</strong> ' + esc(t.dosis2) + '</div>' : '') +
+    '</div>';
+  }).join('');
+}
+
+window.showTratForm = function () {
+  document.getElementById('tratForm').style.display = 'block';
+};
+
+window.hideTratForm = function () {
+  document.getElementById('tratForm').style.display = 'none';
+  document.getElementById('trat_producto').value = '';
+  document.getElementById('trat_dosis1').value = '';
+  document.getElementById('trat_dosis2').value = '';
+  document.getElementById('trat_tipo').value = 'tratamiento';
+};
+
+window.saveTratamiento = async function () {
+  if (!currentDesarrollo) return;
+  var btn = document.getElementById('btnTratSave');
+  btn.disabled = true;
+  try {
+    var data = await fetchGS({
+      action: 'saveTratamiento',
+      desarrollo_id: currentDesarrollo.id,
+      numero: (tratamientosActuales.length || 0) + 1,
+      tipo: document.getElementById('trat_tipo').value,
+      producto: document.getElementById('trat_producto').value,
+      dosis1: document.getElementById('trat_dosis1').value,
+      dosis2: document.getElementById('trat_dosis2').value
+    });
+    if (data.success) {
+      toast('Tratamiento guardado ✓', 'success');
+      hideTratForm();
+      await loadTratamientos(currentDesarrollo.id);
+    } else {
+      toast(data.message || 'Error al guardar', 'error');
+    }
+  } catch (e) {
+    toast('Error de red. Vuelve a intentar.', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+window.eliminarTratamiento = async function (id) {
+  if (!confirm('¿Eliminar este tratamiento? No se puede deshacer.')) return;
+  try {
+    var data = await fetchGS({ action: 'deleteTratamiento', id: id });
+    if (data.success) {
+      toast('Tratamiento eliminado', 'warn');
+      await loadTratamientos(currentDesarrollo.id);
+    } else {
+      toast(data.message || 'No se pudo eliminar', 'error');
+    }
+  } catch (e) {
+    toast('Error de red. Vuelve a intentar.', 'error');
   }
 };
 
