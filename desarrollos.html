@@ -112,6 +112,10 @@
     .apl-item-meta { font-size:0.72rem; color:var(--text-soft); }
     .apl-item-body { font-size:0.82rem; color:var(--text); }
 
+    /* NUEVO: botón eliminar aplicación */
+    .btn-icon-del { background:none; border:none; color:var(--rojo); cursor:pointer; font-size:0.8rem; padding:2px 4px; margin-left:6px; }
+    .btn-icon-del:hover { color:#8B0000; }
+
     /* BOTONES */
     .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 18px; border:none; border-radius:10px; font-family:inherit; font-size:0.85rem; font-weight:600; cursor:pointer; transition:all 0.15s; }
     .btn:disabled { opacity:0.6; cursor:not-allowed; }
@@ -347,7 +351,14 @@
         </div>
         <div><label class="fp-label">Fecha programada</label><input type="date" id="apl_fecha_programada" class="fp-input"></div>
         <div><label class="fp-label">Fecha aplicada</label><input type="date" id="apl_fecha_aplicacion" class="fp-input"></div>
-        <div class="fp-full"><label class="fp-label">Productos (con dosis)</label><textarea id="apl_productos" class="fp-textarea" placeholder="Ej: Max Asencia 2 L/ha + Adherente 50 ml/ha"></textarea></div>
+
+        <!-- PRODUCTOS DINÁMICOS -->
+        <div class="fp-full">
+          <label class="fp-label">Productos y dosis</label>
+          <div id="productosList"></div>
+          <button type="button" class="btn btn-secondary btn-small" onclick="agregarFilaProducto()" style="margin-top:6px;"><i class="fas fa-plus"></i> Agregar producto</button>
+        </div>
+
         <div><label class="fp-label">Modo</label>
           <select id="apl_modo" class="fp-select">
             <option value="">Selecciona...</option>
@@ -382,7 +393,7 @@
     <p style="font-size:0.72rem;color:var(--text-soft);margin-top:10px;"><i class="fas fa-info-circle"></i> Firma digital y fotos: vienen en una siguiente fase.</p>
   </div>
 
-  <!-- ====== NUEVA TARJETA ====== -->
+  <!-- TARJETA: Documento del Caso de Estudio -->
   <div class="detail-card">
     <h3><i class="fas fa-file-word"></i> Documento del Caso de Estudio</h3>
     <p style="font-size:0.8rem;color:var(--text-soft);margin-bottom:12px;">Genera el documento Word con todos los datos capturados hasta ahora. Puedes generarlo varias veces conforme avance el seguimiento.</p>
@@ -393,7 +404,6 @@
       <a id="wordLink" href="#" target="_blank" style="color:var(--verde-deep);font-weight:700;font-size:0.85rem;"><i class="fas fa-external-link-alt"></i> Abrir documento generado</a>
     </div>
   </div>
-  <!-- ====== FIN NUEVA TARJETA ====== -->
 
   <div style="display:flex;gap:8px;justify-content:flex-end;padding-bottom:30px;">
     <button class="btn btn-secondary" onclick="closeDetail()">Cancelar</button>
@@ -583,6 +593,7 @@ async function loadAplicaciones(desarrolloId) {
   }
 }
 
+// ---- RENDER APLICACIONES CON BOTÓN ELIMINAR ----
 function renderAplicaciones() {
   var list = document.getElementById('aplList');
   if (!aplicacionesActuales.length) {
@@ -597,13 +608,31 @@ function renderAplicaciones() {
     return '<div class="apl-item ' + esc(a.estatus || 'pendiente') + '">' +
       '<div class="apl-item-header">' +
         '<span class="apl-item-num"><i class="fas fa-flask"></i> Aplicación #' + esc(a.numero || '?') + ' — <span style="text-transform:uppercase;font-size:0.7rem;color:var(--text-soft);">' + esc(a.estatus || 'pendiente') + '</span></span>' +
-        '<span class="apl-item-meta">' + esc(meta.join(' · ')) + '</span>' +
+        '<span class="apl-item-meta">' + esc(meta.join(' · ')) +
+          ' <button class="btn-icon-del" onclick="eliminarAplicacion(\'' + esc(a.id) + '\')" title="Eliminar"><i class="fas fa-trash"></i></button>' +
+        '</span>' +
       '</div>' +
       (a.productos ? '<div class="apl-item-body"><strong>Productos:</strong> ' + esc(a.productos) + '</div>' : '') +
       (a.resultado_observado ? '<div class="apl-item-body" style="margin-top:4px;"><strong>Resultado:</strong> ' + esc(a.resultado_observado) + '</div>' : '') +
     '</div>';
   }).join('');
 }
+
+// ---- ELIMINAR APLICACIÓN ----
+window.eliminarAplicacion = async function (id) {
+  if (!confirm('¿Eliminar esta aplicación? No se puede deshacer.')) return;
+  try {
+    var data = await fetchGS({ action: 'deleteAplicacion', id: id });
+    if (data.success) {
+      toast('Aplicación eliminada', 'warn');
+      await loadAplicaciones(currentDesarrollo.id);
+    } else {
+      toast(data.message || 'No se pudo eliminar', 'error');
+    }
+  } catch (e) {
+    toast('Error de red. Vuelve a intentar.', 'error');
+  }
+};
 
 function updateProgress() {
   var total = Number(document.getElementById('f_num_aplicaciones').value) || aplicacionesActuales.length || 0;
@@ -614,20 +643,48 @@ function updateProgress() {
   document.getElementById('progressPct').textContent = pct + '%';
 }
 
+// ---- PRODUCTOS DINÁMICOS ----
 window.showAplForm = function () {
   document.getElementById('aplForm').style.display = 'block';
   document.getElementById('apl_numero').value = (aplicacionesActuales.length || 0) + 1;
+  document.getElementById('productosList').innerHTML = '';
+  agregarFilaProducto();
 };
+
+function agregarFilaProducto(producto, dosis) {
+  var container = document.getElementById('productosList');
+  var row = document.createElement('div');
+  row.className = 'producto-row';
+  row.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center;';
+  row.innerHTML =
+    '<input type="text" class="fp-input producto-nombre" placeholder="Producto" style="flex:2;" value="' + esc(producto || '') + '">' +
+    '<input type="text" class="fp-input producto-dosis" placeholder="Dosis (ej: 2 L/ha)" style="flex:1;" value="' + esc(dosis || '') + '">' +
+    '<button type="button" class="btn-icon-del" onclick="this.parentElement.remove()" title="Quitar"><i class="fas fa-times"></i></button>';
+  container.appendChild(row);
+}
+
+function getProductosTexto() {
+  var rows = document.querySelectorAll('#productosList .producto-row');
+  var partes = [];
+  rows.forEach(function (row) {
+    var nombre = row.querySelector('.producto-nombre').value.trim();
+    var dosis  = row.querySelector('.producto-dosis').value.trim();
+    if (nombre) partes.push(nombre + (dosis ? ' — ' + dosis : ''));
+  });
+  return partes.join('\n');
+}
 
 window.hideAplForm = function () {
   document.getElementById('aplForm').style.display = 'none';
-  ['apl_numero','apl_fecha_programada','apl_fecha_aplicacion','apl_productos','apl_equipo','apl_volumen','apl_ph','apl_ce','apl_temp','apl_humedad','apl_clima_post','apl_resultado','apl_notas'].forEach(function (id) {
+  ['apl_numero','apl_fecha_programada','apl_fecha_aplicacion','apl_equipo','apl_volumen','apl_ph','apl_ce','apl_temp','apl_humedad','apl_clima_post','apl_resultado','apl_notas'].forEach(function (id) {
     document.getElementById(id).value = '';
   });
+  document.getElementById('productosList').innerHTML = '';
   document.getElementById('apl_estatus').value = 'pendiente';
   document.getElementById('apl_modo').value = '';
 };
 
+// ---- GUARDAR APLICACIÓN ----
 window.saveAplicacion = async function () {
   if (!currentDesarrollo) return;
   var btn = document.getElementById('btnAplSave');
@@ -640,7 +697,7 @@ window.saveAplicacion = async function () {
       fecha_programada: document.getElementById('apl_fecha_programada').value,
       fecha_aplicacion: document.getElementById('apl_fecha_aplicacion').value,
       estatus: document.getElementById('apl_estatus').value,
-      productos: document.getElementById('apl_productos').value,
+      productos: getProductosTexto(),
       modo_aplicacion: document.getElementById('apl_modo').value,
       volumen_agua_lha: document.getElementById('apl_volumen').value,
       equipo: document.getElementById('apl_equipo').value,
@@ -721,7 +778,7 @@ window.saveDesarrollo = async function () {
   }
 };
 
-// ====== NUEVA FUNCIÓN generarWord ======
+// ---- GENERAR WORD ----
 window.generarWord = async function () {
   if (!currentDesarrollo) return;
   var btn = document.getElementById('btnGenerarWord');
@@ -745,7 +802,6 @@ window.generarWord = async function () {
     txt.textContent = 'Generar documento Word';
   }
 };
-// ====== FIN NUEVA FUNCIÓN ======
 
 function esc(s) {
   if (s === null || s === undefined) return '';
